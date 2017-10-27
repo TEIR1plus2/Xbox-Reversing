@@ -90,7 +90,7 @@ void ZeroBy128(QWORD addy, QWORD count)
 QWORD getFuseline(DWORD fuse)
 {
 	if ((fuse * 0x40) < 0x300)
-		read64(SOC + ((fuse * 0x40) << 3));
+		return read64(SOC + ((fuse * 0x40) << 3));
 	return 0;
 }
 
@@ -152,7 +152,7 @@ void CBB_Load(const QWORD offCBB, QWORD destCBB)
 	// if this is the mfg cb_a or a dev cb_a then the cpukey is set to 0
 #ifdef RETAIL
 	for(int i = 0; i < 12; i++)
-		getFuseline(i);
+		fuses[i] = getFuseline(i);
 	QWORD fuse = fuses[3] | fuses[4]; // first CPUKey fuses
 	write64(CPUKey, fuse);
 	fuse = fuses[5] | fuses[6]; // second CPUKey fuses
