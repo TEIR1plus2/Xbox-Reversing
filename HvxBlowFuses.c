@@ -106,23 +106,37 @@ void HvxBlowFuses(QWORD var1)
 // r5/arg3 = 5 ; r23
 
 #define DEVICE_60000 0x8000020000060000 // r16
+#define DEVICE_60B58 0x8000020000060B58
 #define DEVICE_61000 0x8000020000061000 // r30
+#define DEVICE_61188 0x8000020000061188
+#define DEVICE_61030 0x8000020000061030
+#define DEVICE_61050 0x8000020000061050
+#define DEVICE_61060 0x8000020000061060
 #define DEVICE_50000 0x8000020000050000 // r24
+#define DEVICE_56020 0x8000020000056020
+#define DEVICE_50008 0x8000020000050008
+#define DEVICE_50050 0x8000020000050050
+#define DEVICE_50060 0x8000020000050060
 #define DEVICE_30000 0x8000020000030000 // r18
+#define DEVICE_37000 0x8000020000037000
+#define DEVICE_30010 0x8000020000030010
+#define DEVICE_30020 0x8000020000030020
 #define DEVICE_48000 0x8000020000048000 // r19
 #define DEVICE_0E102 0x80000200E1020000 // r29
+#define DEVICE_0E102_0004 0x80000200E1020004
 #define DEVICE_0E100 0x80000200E1000000 // r17
+#define DEVICE_0E100_7000 0x80000200E1007000
 
 int sub_8E00(QWORD arg1, QWORD arg2, QWORD arg3)
 {
 	QWORD v8A60 = sub_8A60(arg1); // r28
-	QWORD var61188 = read64(DEVICE_61000+0x188);
+	QWORD var61188 = read64(DEVICE_61188);
 	if(read64(HV2+0x6920) >= VSN)
 	{
 		if(var61188 & 0x80 == 0)
 		{
 			var61188 = var61188 | 0x80; // used later
-			write64(DEVICE_61000+0x188, var61188);
+			write64(DEVICE_61188, var61188);
 			__eieio();
 			__isync();
 		}
@@ -136,19 +150,23 @@ int sub_8E00(QWORD arg1, QWORD arg2, QWORD arg3)
 				return;
 	}
 
-	write64(DEVICE_60000+0xB58, read64(DEVICE_60000+0xB58) | 0x8000000000000000);
+	// 0x8000020000060B58
+	write64(DEVICE_60B58, read64(DEVICE_60B58) | 0x8000000000000000);
 	__eieio();
 	__isync();
 
-	write64(DEVICE_61000+0x50, read64(DEVICE_61000+0x50) & 0xFFFFFFFDFFFFFFFF);
+	// 0x8000020000061050
+	write64(DEVICE_61050, read64(DEVICE_61050) & 0xFFFFFFFDFFFFFFFF);
 	__eieio()
 	__isync();
 
-	write64(DEVICE_61000+0x60, read64(DEVICE_61000+0x60) | 0x0000000200000000);
+	// 0x8000020000061060
+	write64(DEVICE_61060, read64(DEVICE_61060) | 0x0000000200000000);
 	__eieio();
 	__isync();
 
-	write64(DEVICE_0E102+4, read64(DEVICE_0E102+4) | 1);
+	// 0x80000200E1020004
+	write64(DEVICE_0E102_0004, read64(DEVICE_0E102+4) | 1);
 	__eieio();
 	__isync();
 
@@ -158,7 +176,8 @@ int sub_8E00(QWORD arg1, QWORD arg2, QWORD arg3)
 
 	if(arg2 != 1)
 	{
-		write64(DEVICE_30000+0x20, extldi(1, 64, 61));
+		// 0x8000020000030020
+		write64(DEVICE_30020, extldi(1, 64, 61));
 		__eieio();
 		__isync();
 
@@ -170,22 +189,24 @@ int sub_8E00(QWORD arg1, QWORD arg2, QWORD arg3)
 		}
 		else
 		{
-			write64(DEVICE_30000+0x7000, 0x303C13 << 38);
+			// 0x8000020000037000
+			write64(DEVICE_37000, 0x303C13 << 38);
 			__eieio();
 			__isync();
 
-			write64(DEVICE_0E100+0x7000, 0x3150D);
+			// 0x8000020000037000
+			write64(DEVICE_0E100_7000, 0x3150D);
 			__eieio();
 			__isync();
 		}
 	}
 	// 9070
-	DWORD r29 = 0xFF8EFB00;
 	if(arg3 > v8C40)
 	{
 		if(read64(HV2+0x6920) + 0xFF8EFB00 <= 0x3FF)
 		{
-			write64(DEVICE_61000+0x30, arg3 << 60);
+			// 0x8000020000061030
+			write64(DEVICE_61030, arg3 << 60);
 			__eieio();
 		}
 	}
@@ -201,43 +222,47 @@ int sub_8E00(QWORD arg1, QWORD arg2, QWORD arg3)
 		if(tmp < var61188)
 		{
 			sub_8B80(DEVICE_61000, DEVICE_50000, v8A60);
-			var61188 = read64(DEVICE_61000+0x188);
+			var61188 = read64(DEVICE_61188);
 		}
 	}
 	else if(v8A60 < var61188)
 	{
 		sub_8B80(DEVICE_61000, DEVICE_50000, v8A60);
-		var61188 = read64(DEVICE_61000+0x188);
+		var61188 = read64(DEVICE_61188);
 	}
 	// 90F0
 	if(var61188 & 7 != arg2)
 	{
-		write64(DEVICE_50000+0x6020, 0x1047C);
+		// 0x8000020000056020
+		write64(DEVICE_56020, 0x1047C);
 		__eieio();
 		__isync();
 
-		while(read64(DEVICE_50000+0x6020) & 0x2000 != 0)
+		// 0x8000020000056020
+		while(read64(DEVICE_56020) & 0x2000 != 0)
 			__db16cyc(); // wait 16 cycles...
 
-		write64(DEVICE_50000+8, 0x78);
+		write64(DEVICE_50008, 0x78);
 		__eieio();
 		__isync();
 
-		write64(DEVICE_61000+0x188, ((read64(DEVICE_61000+0x188) & 0xFFFF3FF8) | (arg2 & 7)) | 0xFF0008);
+		// 0x8000020000061188
+		write64(DEVICE_61188, ((read64(DEVICE_61188) & 0xFFFF3FF8) | (arg2 & 7)) | 0xFF0008);
 		__eieio();
 		PauseProcessor();
 
-		var61188 = read64(DEVICE_61000+0x188) | 0x8000;
-		write64(DEVICE_61000+0x188, var61188);
+		// 0x8000020000061188
+		var61188 = read64(DEVICE_61188) | 0x8000;
+		write64(DEVICE_61188, var61188);
 		__eieio();
 		__isync();
 
-		write64(DEVICE_50000+0x60, read64(DEVICE_50000+0x50));
-		write64(DEVICE_50000+8, 0x7C);
+		write64(DEVICE_50060, read64(DEVICE_50050));
+		write64(DEVICE_50008, 0x7C);
 		__eieio();
 		__isync();
 
-		write64(DEVICE_50000+0x6020, 0ULL);
+		write64(DEVICE_56020, 0ULL);
 		__eieio();
 		__isync();
 	}
@@ -253,27 +278,28 @@ int sub_8E00(QWORD arg1, QWORD arg2, QWORD arg3)
 		if(tmp < tmp2)
 		{
 			sub_8B80(DEVICE_61000, DEVICE_50000, v8A60);
-			var61188 = read64(DEVICE_61000+0x188);
+			var61188 = read64(DEVICE_61188);
 		}
 	}
 	else if(tmp < v8A60)
 	{
 		sub_8B80(DEVICE_61000, DEVICE_50000, v8A60);
-		var61188 = read64(DEVICE_61000+0x188);
+		var61188 = read64(DEVICE_61188);
 	}
 
 	if(arg3 < v8C40)
 	{
 		if(read64(HV2+0x6920) + 0xFF8EFB00 <= 0x3FF)
 		{
-			write64(DEVICE_61000+0x30, arg3 << 60);
+			// 0x8000020000061030
+			write64(DEVICE_61030, arg3 << 60);
 			__eieio();
 		}
 	}
 
 	if(var61188 & 7 == 1)
 	{
-		write64(DEVICE_30000+0x10, extldi(-2, 64, 61));
+		write64(DEVICE_30010, extldi(-2, 64, 61));
 		__eieio();
 		__isync();
 	}
@@ -287,20 +313,20 @@ int sub_8E00(QWORD arg1, QWORD arg2, QWORD arg3)
 	}
 	else
 	{
-		write64(DEVICE_30000+0x7000, 0x948C1 << 42);
+		write64(DEVICE_37000, 0x948C1 << 42);
 		__eieio();
 		__isync();
 
-		write64(DEVICE_0E100+0x7000, 0x3150D);
+		write64(DEVICE_0E100_7000, 0x3150D);
 		__eieio();
 		__isync();
 	}
 
-	write64(DEVICE_60000+0xB58, read64(DEVICE_60000) & 0x7FFFFFFFFFFFFFFF);
+	write64(DEVICE_60B58, read64(DEVICE_60B58) & 0x7FFFFFFFFFFFFFFF);
 	__eieio();
 	__isync();
 
-	write64(DEVICE_0E102+4, read64(DEVICE_0E102+4) & 0xFFFFFFFFFFFFFFFE);
+	write64(DEVICE_0E102_0004, read64(DEVICE_0E102_0004) & 0xFFFFFFFFFFFFFFFE);
 	__eieio();
 	__isync();
 
