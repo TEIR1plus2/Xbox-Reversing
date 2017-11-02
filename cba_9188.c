@@ -149,7 +149,7 @@ void CBB_Load(const QWORD offCBB, QWORD destCBB)
 	QWORD fuses[12] = { 0 };
 	BYTE CPUKey[0x10] = { 0 };
 
-	// if this is the mfg cb_a or a dev cb_a then the cpukey is set to 0
+	// if this is the mfg cb_a then the cpukey is set to 0
 #ifdef RETAIL
 	for(int i = 0; i < 12; i++)
 		fuses[i] = getFuseline(i);
