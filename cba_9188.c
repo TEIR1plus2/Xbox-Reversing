@@ -8,14 +8,14 @@
 // r29: not used
 // r30: not used
 // r31: next bl (cbb nand offset)
-//			CB_A nand offset + CB_A size aligned to the upper 0x10 byte (ex: size = (size+0xF) & 0xFFFFFFF0)
+//	CB_A nand offset + CB_A size aligned to the upper 0x10 byte (ex: size = (size+0xF) & 0xFFFFFFF0)
 
 #define STACK 	0x800002000001F700 // r1
 #define TOC 	0x800002000001C000 // r2
 #define SRAM	0x8000020000010000
 #define POSTo 	0x8000020000061010
 #define NAND	0x80000200C8000000
-#define SOC		0x8000020000020000
+#define SOC	0x8000020000020000
 
 // an attempt to make this easier to read
 #define read64(addy) *(QWORD*)addy
