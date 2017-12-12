@@ -165,7 +165,7 @@ void HARDWARE_ERROR_PRINT(DWORD dwUnk1)
 			r11 -= 0x50;
 			r11 = countLeadingZeros(r11);
 			r11 = (r11 >> 27) & 1;
-		} while(r11 == r30);
+		} while(((countLeadingZeros((dwUnk1 & 0xFF) - 0x50) >> 27) & 1) == r30);
 	}
 }
 
