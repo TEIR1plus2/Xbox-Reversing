@@ -3,6 +3,8 @@ This is my collection of research on the lower level Xbox 360 system. This will 
 
 I enjoy researching this system because it uses some very unique security measures to not only secure the console, but to also verify its integrity with xbox live. I would never had thought of many of these techniques before seeing them used here.
 
+I also post some of my work here: http://free60.org/wiki/Special:Contributions/TEIR1plus2
+
 # 1BL
 The first bit of code executed on the xbox 360 on power-on. It was dumped from the ROM inside the CPU, mapped to memory location 0x8000020000000000.
 
