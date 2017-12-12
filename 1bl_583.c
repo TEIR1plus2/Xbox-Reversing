@@ -1,63 +1,66 @@
 // version 0x583
-// only part reversed is how it loads the CB, there are other functions not reversed.
+// Have not reversed all of the hardware error subroutines.
 
 #define STACK 0x800002000001F700 // r1
-#define TOCP 0x8000020000000000; // r2
-#define SRAM 0x8000020000010000;
-#define NAND 0x80000200C8000000;
+#define TOCP 0x8000020000000000 // r2
+#define SRAM 0x8000020000010000
+#define NAND 0x80000200C8000000
+#define PCI 0x80000200D0000000
 
-#define _HW_REG_61008 0x8000020000061008;
-#define HW_REG_61008 (*((volatile QWORD *)_REG_61008))
+#define _HW_REG_POST 0x8000020000061010
+#define _HW_REG_61008 0x8000020000061008
+#define HW_REG_POST (*((volatile QWORD *)_HW_REG_POST))
+#define HW_REG_61008 (*((volatile QWORD *)_HW_REG_61008))
 
 #define BITMASK32(n) ((~0ul) >> 32-bits)
-#define BITMASK32_L(n) ~((~0ul) >> bits) // left justified bitshift
+#define BITMASK32_L(n) ~((~0ul) >> bits) // left justified bitmask, assumes the hardware makes bits shifted in 0
 #define BITMASK64(n) ((~0ull) >> 64-bits)
-#define BITMASK64_L(n) ~((~0ull) >> bits) // left justified bitshift
+#define BITMASK64_L(n) ~((~0ull) >> bits) // left justified bitmask, assumes the hardware makes bits shifted in 0
 #define ROTL32(data, bits) ((data << bits) | data >> 32-bits) & ~0ul
 #define ROTR32(data, bits) ((data >> bits) | data << 32-bits) & ~0ul
 #define ROTL64(data, bits) ((data << bits) | data >> 64-bits) & ~0ull
 #define ROTR64(data, bits) ((data >> bits) | data << 64-bits) & ~0ull
 
 BYTE Salt[0xB] = <redacted>;
-
 BYTE BLKey[0x10] = { <redacted> };
-
 XECRYPT_RSAPUB_2048 xRSA;
-xRSA = <redacted>
+xRSA = <redacted>;
 
 typedef struct _BLHeader
 {
-	WORD Magic;		// 0 : 2
+	WORD Magic;			// 0 : 2
 	WORD Version;		// 2 : 2
 	DWORD Flags;		// 4 : 4
 	DWORD EntryPoint;	// 8 : 4
-	DWORD Size;		// 0xC : 4
+	DWORD Size;			// 0xC : 4
 	BYTE key[0x10];		// 0x10 : 0x10
 	QWORD Pad[4];		// 0x20 : 0x20
 	XECRYPT_SIG Sig;	// 0x40 : 0x100
 	// Header: 0x140
 }BLHeader, *PBLHeader;
 
+// write to the post bus
 void POST(QWORD postCode)
 {
-	*(QWORD*)0x8000020000061010 = (postCode << 56);
+	HW_REG_POST = (postCode << 56);
 }
 
-// outputs the value, following with the value OR'ed with 0x80
+// outputs a given byte, then the same byte OR'ed with 0x80
+// probably for their internal post sniffer
 void POST_DATA(BYTE outPost)
 {
 	POST(outPost);
 	POST(outPost | 0x80);
 }
 
-// reads bytes from an address and outputs to post in high-low format
+// outputs a given amount of bytes from a given address in high-low format
 void POST_ADDRESS(QWORD pqwAddy, DWORD cbAddy)
 {
 	for(int i = 0;i < cbAddy;i++)
 	{
 		BYTE bData = *(BYTE*)pqwAddy+i;
-		POST(bData >> 4); // output high
-		POST(bData & 0xF); // output low
+		POST(data >> 4); // output high
+		POST(data & 0xF); // output low
 	}
 }
 
@@ -133,7 +136,7 @@ void HARDWARE_ERROR_PRINT(DWORD dwUnk1)
 			else if(bUnk1 == 0x28)
 				sub_39C8(tmp);
 			else if(bUnk1 == 0x30)
-				sub_3F88(tmp, 0x80000200D0008000);
+				sub_3F88(tmp, PCI + 0x8000);
 			else if(bUnk1 == 0x38)
 				sub_3C78(tmp);
 			else if(bUnk1 == 0x40)
@@ -143,7 +146,7 @@ void HARDWARE_ERROR_PRINT(DWORD dwUnk1)
 			else if(bUnk1 == 0x50)
 				POST_ADDRESS(TOCP+2, 2);
 			else if(bUnk1 == 0x58)
-				sub_3F88(tmp, 0x80000200D0000000);
+				sub_3F88(tmp, PCI);
 			else if(bUnk1 == 0x60)
 				sub_4008(tmp);
 			tmp = 0;
@@ -163,10 +166,6 @@ void HARDWARE_ERROR_PRINT(DWORD dwUnk1)
 					i = 0;
 				}
 			}
-			r11 = dwUnk1 & 0xFF;
-			r11 -= 0x50;
-			r11 = countLeadingZeros(r11);
-			r11 = (r11 >> 27) & 1;
 		} while(((countLeadingZeros((dwUnk1 & 0xFF) - 0x50) >> 27) & 1) == r30);
 	}
 }
@@ -267,7 +266,7 @@ void CB_Load()
 
 	POST(0x19);
 	// overwrites the old key with the new one
-	XeCryptHmacSha(BLKey, 0x10, cbHeader->key, 0x10, 0, 0, 0, 0, cbHeader->key, tmp);
+	XeCryptHmacSha(BLKey, 0x10, &cbHeader->key, 0x10, 0, 0, 0, 0, &cbHeader->key, tmp);
 
 	POST(0x1A);
 	XECRYPT_RC4_STATE rc4;
@@ -281,7 +280,7 @@ void CB_Load()
 	XeCryptRotSumSha(SRAM, 0x10, SRAM+0x140, tmp - 0x140, Hash, 0x14); // hashes everything after the sig
 
 	POST(0x1D);
-	if(XeCryptBnQwBeSigDifference(cbHeader->Sig, Hash, Salt, &xRSA)) // checks sig against hash with public rsa key
+	if(XeCryptBnQwBeSigDifference(&cbHeader->Sig, Hash, Salt, &xRSA)) // checks sig against hash with public rsa key
 		Panic(0x96);
 
 	POST(0x1E);
@@ -304,7 +303,7 @@ void BL_1()
 
 	DWORD tmp = sub_36A8();
 	if((tmp & 0xFF) == 0x50)
-		HARDWARE_ERROR_PRINT(tmp); // see documentation at function
+		HARDWARE_ERROR_PRINT(tmp); // look into later
 
 	// load and execute the CB
 	CB_Load();
