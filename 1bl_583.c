@@ -43,19 +43,21 @@ void POST(QWORD postCode)
 	*(QWORD*)0x8000020000061010 = (postCode << 56);
 }
 
+// outputs the value, following with the value OR'ed with 0x80
 void POST_DATA(BYTE outPost)
 {
 	POST(outPost);
 	POST(outPost | 0x80);
 }
 
+// reads bytes from an address and outputs to post in high-low format
 void POST_ADDRESS(QWORD pqwAddy, DWORD cbAddy)
 {
 	for(int i = 0;i < cbAddy;i++)
 	{
 		BYTE bData = *(BYTE*)pqwAddy+i;
-		POST(data >> 4); // output high
-		POST(data & 0xF); // output low
+		POST(bData >> 4); // output high
+		POST(bData & 0xF); // output low
 	}
 }
 
