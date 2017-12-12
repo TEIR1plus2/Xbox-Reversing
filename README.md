@@ -27,6 +27,9 @@ Retail decryption key for the CB_B = CB_A Key + CPUKey + Salt in the CB_B Header
 
 MFG decryption key for the CB_B = CB_A Key + Salt in the CB_B Header
 
+# HV Utility
+Utility functions reversed from the Hypervisor to assist with general tasks.
+
 # Challenge
 This is the payload xbox live sends the console to verify it's integrity. This will not be documented beyond what's mentioned in the file.
 
