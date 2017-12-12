@@ -27,13 +27,17 @@ Retail decryption key for the CB_B = CB_A Key + CPUKey + Salt in the CB_B Header
 
 MFG decryption key for the CB_B = CB_A Key + Salt in the CB_B Header
 
-# HV Utility
+# HV Related Stuff
+## HV Utility
 Utility functions reversed from the Hypervisor to assist with general tasks.
 
-# Challenge
-This is the payload xbox live sends the console to verify it's integrity. This will not be documented beyond what's mentioned in the file.
+## HvxKeysExecute
+Method of executing a payload in HV context
 
-# HvxBlowFuses
+## HvxBlowFuses
 Syscall found in the hypervisor to blow efuses on the console through software. It seems to set some hardware registers to activate a circuit found near the CPU, this is largly believed to supply the voltage needed to burn the efuses.
 
 This is a work in progress still...
+
+# Challenge
+This is the payload xbox live sends the console to verify it's integrity. This will not be documented beyond what's mentioned in the file.
