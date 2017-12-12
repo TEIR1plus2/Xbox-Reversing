@@ -5,7 +5,18 @@
 #define TOCP 0x8000020000000000; // r2
 #define SRAM 0x8000020000010000;
 #define NAND 0x80000200C8000000;
-#define SOC_UNK 0x8000020000061008;
+
+#define _HW_REG_61008 0x8000020000061008;
+#define HW_REG_61008 (*((volatile QWORD *)_REG_61008))
+
+#define BITMASK32(n) ((~0ul) >> 32-bits)
+#define BITMASK32_L(n) ~((~0ul) >> bits) // left justified bitshift
+#define BITMASK64(n) ((~0ull) >> 64-bits)
+#define BITMASK64_L(n) ~((~0ull) >> bits) // left justified bitshift
+#define ROTL32(data, bits) ((data << bits) | data >> 32-bits) & ~0ul
+#define ROTR32(data, bits) ((data >> bits) | data << 32-bits) & ~0ul
+#define ROTL64(data, bits) ((data << bits) | data >> 64-bits) & ~0ull
+#define ROTR64(data, bits) ((data >> bits) | data << 64-bits) & ~0ull
 
 BYTE Salt[0xB] = <redacted>;
 
@@ -16,11 +27,11 @@ xRSA = <redacted>
 
 typedef struct _BLHeader
 {
-	WORD Magic;			// 0 : 2
+	WORD Magic;		// 0 : 2
 	WORD Version;		// 2 : 2
 	DWORD Flags;		// 4 : 4
 	DWORD EntryPoint;	// 8 : 4
-	DWORD Size;			// 0xC : 4
+	DWORD Size;		// 0xC : 4
 	BYTE key[0x10];		// 0x10 : 0x10
 	QWORD Pad[4];		// 0x20 : 0x20
 	XECRYPT_SIG Sig;	// 0x40 : 0x100
@@ -30,6 +41,22 @@ typedef struct _BLHeader
 void POST(QWORD postCode)
 {
 	*(QWORD*)0x8000020000061010 = (postCode << 56);
+}
+
+void POST_DATA(BYTE outPost)
+{
+	POST(outPost);
+	POST(outPost | 0x80);
+}
+
+void POST_ADDRESS(QWORD pqwAddy, DWORD cbAddy)
+{
+	for(int i = 0;i < cbAddy;i++)
+	{
+		BYTE bData = *(BYTE*)pqwAddy+i;
+		POST(data >> 4); // output high
+		POST(data & 0xF); // output low
+	}
 }
 
 void PanicGen()
@@ -51,10 +78,95 @@ QWORD ReadHighestByte(QWORD Address)
 
 DWORD sub_36A8()
 {
-	DWORD ret = ReadHighestByte(*(QWORD*)SOC_UNK);
+	DWORD ret = ReadHighestByte(HW_REG_61008);
 	if((ret & 0x80) != 0)
 		ret = (~ret) & 0xFF;
 	return = ret & 0xF8;
+}
+
+// rough translation for the cntlzw instruction
+DWORD countLeadingZeros(DWORD data)
+{
+	DWORD count = 0;
+	for(int i = 0;i < 31;i++)
+	{
+		if(data >> 31-i)
+			return count;
+		count++;
+	}
+}
+
+/*
+Basically this happens when its detected that the
+SOC doesn't carry correct values, it goes into a loop
+and starts outputting data from a certain SOC register
+(0x8000020000061008) - possibly error register?
+
+It doesn't repeat it's output unless the SOC register changes
+*/
+void HARDWARE_ERROR_PRINT(DWORD dwUnk1)
+{
+	while(1)
+	{
+		BYTE bUnk1_p = ROTL32(dwUnk1, 3) & 0x1F;
+		POST_DATA(bUnk1_p | 0x60);
+
+		BYTE tmp = 0;
+		BYTE bUnk1 = dwUnk1 & FF;
+		
+		if(bUnk1 == 0x78)
+			tmp = 1;
+		else
+		{
+			if(bUnk1 == 0)
+				sub_3878(tmp);
+			else if(bUnk1 == 8)
+				sub_38B8(tmp);
+			else if(bUnk1 == 0x10)
+				sub_3AE0(tmp);
+			else if(bUnk1 == 0x18)
+				sub_3B30(tmp);
+			else if(bUnk1 == 0x20)
+				sub_3BB0(tmp);
+			else if(bUnk1 == 0x28)
+				sub_39C8(tmp);
+			else if(bUnk1 == 0x30)
+				sub_3F88(tmp, 0x80000200D0008000);
+			else if(bUnk1 == 0x38)
+				sub_3C78(tmp);
+			else if(bUnk1 == 0x40)
+				sub_3D08(tmp);
+			else if(bUnk1 == 0x48)
+				sub_3DE0(tmp);
+			else if(bUnk1 == 0x50)
+				POST_ADDRESS(TOCP+2, 2);
+			else if(bUnk1 == 0x58)
+				sub_3F88(tmp, 0x80000200D0000000);
+			else if(bUnk1 == 0x60)
+				sub_4008(tmp);
+			tmp = 0;
+		}
+
+		POST_DATA(bUnk1_p | 0x70);
+
+		DWORD r30 = (countLeadingZeros(bUnk1-0x50) >> 27) & 1;
+		do
+		{
+			for(int i = 1;i < 6;i++)
+			{
+				DWORD dwUnk2 = sub_36A8();
+				if(dwUnk1 & 0xFF != dwUnk2 & 0xFF)
+				{
+					dwUnk1 = dwUnk2;
+					i = 0;
+				}
+			}
+			r11 = dwUnk1 & 0xFF;
+			r11 -= 0x50;
+			r11 = countLeadingZeros(r11);
+			r11 = (r11 >> 27) & 1;
+		} while(r11 == r30);
+	}
 }
 
 bool CB_VerifyOffset(DWORD offset, DWORD arg2)
@@ -190,7 +302,7 @@ void BL_1()
 
 	DWORD tmp = sub_36A8();
 	if((tmp & 0xFF) == 0x50)
-		sub_4098(tmp); // look into later
+		HARDWARE_ERROR_PRINT(tmp); // see documentation at function
 
 	// load and execute the CB
 	CB_Load();
