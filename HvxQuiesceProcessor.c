@@ -1,6 +1,29 @@
 
 #define HSPRG1 mfspr(SPR_HSPRG1)
 
+typedef struct _THREAD_STATUS
+{
+	QWORD Reserved[0x10];
+	BYTE PID;
+	BYTE STATE;
+	BYTE REASON; // i think
+	BYTE SUSPENDED;
+	DWORD dwUnk1;
+	DWORD DEC_SAVE;
+	DWORD HDEC_SAVE;
+}THREAD_STATUS, *PTHREAD_STATE;
+
+typedef struct _PPE_STATE
+{
+	THREAD_STATUS hThread;
+	THREAD_STATUS vThread;
+}PPE_STATE, *PPPE_STATE;
+
+typedef struct _CPU_STATE
+{
+	PPE_STATE Core[3];
+}CPU_STATE, *PCPU_STATE;
+
 QWORD HvxQuiesceProcessor(BYTE Reason)
 {
 	PTHREAD_STATE pThreadState = (PTHREAD_STATE)HSPRG1;
