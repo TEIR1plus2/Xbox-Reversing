@@ -12,29 +12,6 @@ DWORD HvpBurnFuseLock = read32(0x2000164D4);
 
 BYTE HvpPvtUpdateSequence = read8(0x2000164A0);
 
-typedef struct _THREAD_STATUS
-{
-	QWORD Reserved[0x10];
-	BYTE PID;
-	BYTE STATE;
-	BYTE REASON; // i think
-	BYTE SUSPENDED;
-	DWORD dwUnk1;
-	DWORD DEC_SAVE;
-	DWORD HDEC_SAVE;
-}THREAD_STATUS, *PTHREAD_STATE;
-
-typedef struct _PPE_STATE
-{
-	THREAD_STATUS hThread;
-	THREAD_STATUS vThread;
-}PPE_STATE, *PPPE_STATE;
-
-typedef struct _CPU_STATE
-{
-	PPE_STATE Core[3];
-}CPU_STATE, *PCPU_STATE;
-
 typedef struct _FUSE_DEVICE
 {
 	QWORD SoftFuseChain[0x300]; // 0-0x1800
