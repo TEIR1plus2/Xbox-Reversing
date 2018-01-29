@@ -37,5 +37,8 @@ Method of executing a payload in HV context
 ## HvxBlowFuses
 Microsoft's way to blow fuses. This function expects all other threads to have had HvxQuiesceProcessor called on each of them before hand, then it puts each thread to sleep. This function then alters the cpu voltage regulator to increase cpu voltage. It then initializes the fuse device's precharge, enables the burning mechanism, tries to burn a fuse, then disables burning. It then checks if the fuse was burned. The device has 3 chances to burn the fuse before it reports a device failure. HvxBlowFuses has a variable number of failures it will accept before aborting the operation. After its done blowing fuses, it restores the voltage regulator to its original settings and then wakes up and restores the threads.
 
+## HvxQuiesceProcessor
+placeholder
+
 # Challenge
 This is the payload xbox live sends the console to verify it's integrity. This will not be documented beyond what's mentioned in the file.
