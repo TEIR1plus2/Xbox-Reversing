@@ -72,7 +72,7 @@ Microsoft's way to blow fuses. This function expects all other threads to have h
   - Thread 0 updates it's flags in the TSCR register and then updates its state.
 
  Now thread 0 can change what ever it needs to while all other threads are asleep. When thread 0 is done,
- it much wake up the other threads by calling HvpRestoreThread.
+ it must wake up the other threads by calling HvpRestoreThread.
 
  The Restoration process works as follows:
   - HvpRestoreThread makes sure each thread calling it was saved before, if they weren't its considered an
