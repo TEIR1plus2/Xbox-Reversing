@@ -1,4 +1,80 @@
 
+/*
+ There are 3 ppe cores and 2 threads per core. These threads are numbered as 0-5 in this document.
+ Even threads are refered to the cores themselves or 'hardware threads'. (threads 0, 2, 4)
+ Odd threads are refered to as the previous core's virtual thread
+  - Thread 1 is the virtual thread of thread 0
+  - Thread 3 is the virtual thread of thread 2
+  - Thread 5 is the virtual thread of thread 4
+ So the processor can be organized like this:
+ 	________________________________________________________________
+ 	|							  XCPU							   |
+ 	|______________________________________________________________|
+ 	|		 Core 0 	 |		  Core 1	  |		   Core 2	   |
+ 	|____________________|____________________|____________________|
+ 	| hwThread | vThread | hwThread | vThread | hwThread | vThread |
+ 	|__________|_________|__________|_________|__________|_________|
+ 	| Thread 0 | Thread 1| Thread 2 | Thread 3| Thread 4 | Thread 5|
+ 	|__________|_________|__________|_________|__________|_________|
+
+ When something needs to change a cpu management register the system first has to Quiesce threads 1-5.
+
+ The Quiesce process works as follows:
+  - Start a thread on thread 0, Have that thread start threads on threads 1-5 and call HvxQuiesceProcessor
+    on those threads. DO NOT CALL HvxQuiesceProcessor ON THREAD 0.
+  - Threads 1-5 will call HvpSaveThread and will wait until thread 0 starts saving.
+  - On thread 0, call HvpSaveThread. Thread 0 will then check if the other threads are waiting to continue,
+    if they are not ready, it will hang until they are.
+  - Thread 0 will save the cpu/thread management registers to memory
+  - Thread 0 will then make sure all threads were Quiesced for the same reason, if not it's considered a
+    system error and hangs the processor.
+  - Thread 0 then notifies the other threads to continue saving and waits until they're done.
+  - Threads 1-5 will set their IRQ register to 0x7C (I think this is to disable interrupts for the thread)
+  - Threads 1-5 will save their DEC register to memory and set it to 0x7FFFFFFF
+  - Hardware threads will wait until their virtual threads are done and sleeping, then they save their HDEC
+    register to memory and set it to 0x7FFFFFFF
+  - Threads 1-5 update their flags in the TSCR register and then update their state, notifying thread 0
+    that they are done saving.
+  - Thread 0 then flushes the L2 cachelines and syncs all thread_states areas to memory.
+  - Thread 0 saves it's DEC and HDEC registers to memory and sets them to 0x7FFFFFFF
+  - Thread 0 updates it's flags in the TSCR register and then updates its state.
+
+ Now thread 0 can change what ever it needs to while all other threads are asleep. When thread 0 is done,
+ it much wake up the other threads by calling HvpRestoreThread.
+
+ The Restoration process works as follows:
+  - HvpRestoreThread makes sure each thread calling it was saved before, if they weren't its considered an
+    error and just hanges.
+  - Thread 0 restores the general irql registers and HDEC from the saved values in memory.
+  - Thread 0 generates a RESET interrupt on thread 1 and waits for it to be ready
+  - Thread 1 goes to the RESET handler which verifies the interrupt was not an error
+  - Thread 1 calls HvpRestoreThread and sets it IRQ register to 0 and restores its DEC register
+  - Thread 1 notifies thread 0 that it is ready to continue and waits for restoration to complete
+  - Thread 0 sets its IRQ register to 0 and restores its DEC register
+  - Thread 0 generates a RESET interrupt on thread 2 and waits for it to be ready
+  - Thread 2 goes to the RESET handler which verifies the interrupt was not an error
+  - Thread 2 calls HvpRestoreThread and restores its HDEC register from memory
+  - Thread 2 generates a RESET interrupt on thread 3 and waits for it to be ready
+  - Thread 3 goes to the RESET handler which verifies the interrupt was not an error
+  - Thread 3 calls HvpRestoreThread and sets it IRQ register to 0 and restores its DEC register
+  - Thread 3 notifies thread 2 that it is ready to continue and waits for restoration to complete
+  - Thread 2 sets its IRQ register to 0 and restores its DEC register
+  - Thread 2 notifies thread 0 that it is ready to continue and waits for restoration to complete
+  - Thread 0 generates a RESET interrupt on thread 4 and waits for it to be ready
+  - Thread 4 goes to the RESET handler which verifies the interrupt was not an error
+  - Thread 4 calls HvpRestoreThread and restores its HDEC register from memory
+  - Thread 4 generates a RESET interrupt on thread 5 and waits for it to be ready
+  - Thread 5 goes to the RESET handler which verifies the interrupt was not an error
+  - Thread 5 calls HvpRestoreThread and sets it IRQ register to 0 and restores its DEC register
+  - Thread 5 notifies thread 4 that it is ready to continue and waits for restoration to complete
+  - Thread 4 sets its IRQ register to 0 and restores its DEC register
+  - Thread 4 notifies thread 0 that it is ready to continue and waits for restoration to complete
+  - Thread 0 notifies all threads that restoration is complete
+  - All threads return from their syscall interrupt
+
+picture of the above incase github screws up the formatting: https://i.imgur.com/Voh7Dvn.png
+*/
+
 #define HSPRG1 mfspr(SPR_HSPRG1)
 
 typedef struct _THREAD_STATUS
@@ -272,7 +348,7 @@ void HvpRestoreThread()
 	QWORD IRQLRegs = __REG_50000 + (pThreadState->PID << 12);
 	write64(IRQLRegs + 8, 0); // ei_is
 
-	// if this is core 0/thread 0 then finish restores
+	// if this is core 0/thread 0 then wake up the threads
 	if(pThreadState->PID == 0)
 	{
 		// wake up core 1
@@ -281,7 +357,7 @@ void HvpRestoreThread()
 
 		// wait until core 1 is ready
 		PCPU_STATE pCPU = (PCPU_STATE)pThreadState;
-		while(pCPU->Core1.hThread.STATE != 5)
+		while(pCPU->Core[1].hThread.STATE != 5)
 			continue;
 
 		// wake up core 2
@@ -289,19 +365,19 @@ void HvpRestoreThread()
 		_REG_50010 = 0x100078; // ei
 
 		// wait until core 2 is ready
-		while(pCPU->Core2.hThread.STATE != 5)
+		while(pCPU->Core[2].hThread.STATE != 5)
 			continue;
 
 		// unknown register
 		_REG_611A0 |= 0x100; // ei_is
 
 		// done restoring, notify all threads
-		pCPU->Core0.hThread.STATE = 0;
-		pCPU->Core0.vThread.STATE = 0;
-		pCPU->Core1.hThread.STATE = 0;
-		pCPU->Core1.vThread.STATE = 0;
-		pCPU->Core2.hThread.STATE = 0;
-		pCPU->Core2.vThread.STATE = 0;
+		pCPU->Core[0].hThread.STATE = 0;
+		pCPU->Core[0].vThread.STATE = 0;
+		pCPU->Core[1].hThread.STATE = 0;
+		pCPU->Core[1].vThread.STATE = 0;
+		pCPU->Core[2].hThread.STATE = 0;
+		pCPU->Core[2].vThread.STATE = 0;
 		// s
 	}
 	else
