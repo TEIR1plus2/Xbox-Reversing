@@ -8,9 +8,9 @@
   - Thread 5 is the virtual thread of thread 4
  So the processor can be organized like this:
  	________________________________________________________________
- 	|							  XCPU							   |
+ 	|			       XCPU			       |
  	|______________________________________________________________|
- 	|		 Core 0 	 |		  Core 1	  |		   Core 2	   |
+ 	|	 Core 0      |	      Core 1	  |	   Core 2      |
  	|____________________|____________________|____________________|
  	| hwThread | vThread | hwThread | vThread | hwThread | vThread |
  	|__________|_________|__________|_________|__________|_________|
